@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useState } from "react";
 import "./App.css";
 import CurrencyRow from "./CurrencyRow";
@@ -15,6 +16,14 @@ function App() {
   const [amount, setAmount] = useState(1);
   const [amountInCurrency, setAmountInCurrency] = useState(true);
   const [fromCurrencySelected, setFromCurrencySelected] = useState(true);
+
+  const currencyBYN = {
+    Cur_ID: 110,
+    Cur_Abbreviation: "BYN",
+    Cur_Scale: 1,
+    Cur_Name: "Белорусский рубль",
+    Cur_OfficialRate: 1,
+  };
 
   let fromAmount, toAmount;
   if (amountInCurrency) {
@@ -43,10 +52,34 @@ function App() {
     setFromCurrencySelected(false);
   };
 
+  const fromCurrencyDataChange = (nameCurrency) => {
+    setFromCurrencyScale(nameCurrency.Cur_Scale);
+    setFromCurrencyExchangeRate(nameCurrency.Cur_OfficialRate);
+    setExchangeRate(
+      (
+        nameCurrency.Cur_OfficialRate /
+        nameCurrency.Cur_Scale /
+        (toCurrencyExchangeRate / toCurrencyScale)
+      ).toFixed(2)
+    );
+  };
+  const toCurrencyDataChange = (nameCurrency) => {
+    setToCurrencyScale(nameCurrency.Cur_Scale);
+    setToCurrencyExchangeRate(nameCurrency.Cur_OfficialRate);
+    setExchangeRate(
+      (
+        fromCurrencyExchangeRate /
+        fromCurrencyScale /
+        (nameCurrency.Cur_OfficialRate / nameCurrency.Cur_Scale)
+      ).toFixed(2)
+    );
+  };
+
   useEffect(() => {
     api.apiData().then((response) => {
-      const firstCurrency = response[4];
-      const secondCurrency = response[0];
+      response.unshift(currencyBYN);
+      const firstCurrency = response[0];
+      const secondCurrency = response[5];
       setCurrencyOptions(response.map((r) => r.Cur_Abbreviation));
       setFromCurrency(firstCurrency.Cur_Abbreviation);
       setToCurrency(secondCurrency.Cur_Abbreviation);
@@ -64,33 +97,25 @@ function App() {
 
   useEffect(() => {
     if (!!fromCurrency && exchangeRate !== undefined && fromCurrencySelected) {
-      api.currencyData(fromCurrency).then((response) => {
-        setFromCurrencyScale(response.Cur_Scale);
-        setFromCurrencyExchangeRate(response.Cur_OfficialRate);
-        setExchangeRate(
-          (
-            response.Cur_OfficialRate /
-            response.Cur_Scale /
-            (toCurrencyExchangeRate / toCurrencyScale)
-          ).toFixed(2)
-        );
-      });
+      if (fromCurrency === "BYN") {
+        fromCurrencyDataChange(currencyBYN);
+      } else {
+        api.currencyData(fromCurrency).then((response) => {
+          fromCurrencyDataChange(response);
+        });
+      }
     } else if (
       !!toCurrency &&
       exchangeRate !== undefined &&
       !fromCurrencySelected
     ) {
-      api.currencyData(toCurrency).then((response) => {
-        setToCurrencyScale(response.Cur_Scale);
-        setToCurrencyExchangeRate(response.Cur_OfficialRate);
-        setExchangeRate(
-          (
-            fromCurrencyExchangeRate /
-            fromCurrencyScale /
-            (response.Cur_OfficialRate / response.Cur_Scale)
-          ).toFixed(2)
-        );
-      });
+      if (toCurrency === "BYN") {
+        toCurrencyDataChange(currencyBYN);
+      } else {
+        api.currencyData(toCurrency).then((response) => {
+          toCurrencyDataChange(response);
+        });
+      }
     }
   }, [fromCurrency, toCurrency]);
 
